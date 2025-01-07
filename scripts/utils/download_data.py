@@ -111,15 +111,15 @@ def download_taxi_data(
 
 # get and save year of data
 df_year = download_taxi_data(2023)
-df_year.to_parquet(Path("data/yellow_tripdata_2023.parquet"))
+df_year.to_parquet(Path("../../data/yellow_tripdata_2023.parquet"))
 
 # get and save month of data
 df_month = download_taxi_data(2023, 6)
-df_month.to_parquet(Path("data/yellow_tripdata_2023_01.parquet"))
+df_month.to_parquet(Path("../../data/yellow_tripdata_2023_01.parquet"))
 
 # get and save day of data
 df_day = download_taxi_data(2023, 6, 15)
-df_day.to_parquet(Path("data/yellow_tripdata_2023_01_01.parquet"))
+df_day.to_parquet(Path("../../data/yellow_tripdata_2023_01_01.parquet"))
 
 ################################################################################
 #

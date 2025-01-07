@@ -1,5 +1,6 @@
 # data files
 data/
+!data/.gitkeep
 
 # PyCharm
 .idea/
