@@ -1,9 +1,12 @@
 cupy
+ipykernel
+matplotlib
 numpy
 pandas
 psutil
 pyarrow
 scikit-learn
+seaborn
 requests
 tabulate
 xgboost

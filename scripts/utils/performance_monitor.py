@@ -4,43 +4,47 @@ import inspect
 import threading
 import time
 import tracemalloc
-from typing import Callable, Any
+from typing import Callable, Any, Dict, Union, Tuple
 
 import psutil
 
 
 def performance_monitor(func: Callable) -> Callable:
 	"""
-    A decorator that monitors and reports comprehensive function performance metrics.
+	A decorator that monitors and reports comprehensive function performance metrics.
 
-    Metrics included:
-    - Execution time: Total time taken for function execution in seconds
-    - CPU usage: System-wide CPU utilization across all cores during function execution,
-      measured as percentage of total available CPU capacity
-    - Memory usage: Current Resident Set Size (RSS) - amount of process memory
-      currently held in RAM, excluding swapped out memory
-    - Peak memory: Highest point of memory allocation during execution, including
-      temporary allocations that may have been freed
-    - Thread utilization: Ratio of active threads to total available threads
-    - I/O operations: Amount of data read from and written to disk in KB
-    - Context switches:
-        * Voluntary: Thread willingly gave up CPU
-        * Involuntary: OS forced thread to yield CPU
-    - Page faults: Number of times data had to be retrieved from disk due to not being in memory
-    - Network usage: Amount of data sent and received over network in KB
-    - Garbage collection: Number of garbage collection runs per generation (0/1/2)
-    - Stack depth: Current depth of the call stack when function executes
+	Metrics included:
+	- Execution time: Total time taken for function execution in seconds
+	- CPU usage: System-wide CPU utilization across all cores during function execution,
+	  measured as percentage of total available CPU capacity
+	- Memory usage: Current Resident Set Size (RSS) - amount of process memory
+	  currently held in RAM, excluding swapped out memory
+	- Peak memory: Highest point of memory allocation during execution, including
+	  temporary allocations that may have been freed
+	- Thread utilization: Ratio of active threads to total available threads
+	- I/O operations: Amount of data read from and written to disk in KB
+	- Context switches:
+		* Voluntary: Thread willingly gave up CPU
+		* Involuntary: OS forced thread to yield CPU
+	- Page faults: Number of times data had to be retrieved from disk due to not being in memory
+	- Network usage: Amount of data sent and received over network in KB
+	- Garbage collection: Number of garbage collection runs per generation (0/1/2)
+	- Stack depth: Current depth of the call stack when function executes
 
-    Args:
-        func: The function to be monitored
+	Args:
+		func: The function to be monitored
 
-    Returns:
-        Wrapper function that includes performance monitoring
-    """
+	Returns:
+		A tuple containing:
+		- The original function's return value
+		- A dictionary containing all performance metrics
+	"""
 
 	@functools.wraps(func)
-	def wrapper(*args, **kwargs) -> Any:
+	def wrapper(*args, **kwargs) -> Tuple[
+		Any, Dict[str, Union[float, int, tuple]]]:
 		process = psutil.Process()
+		metrics: Dict[str, Union[float, int, tuple]] = {}
 
 		# Collect initial metrics
 		initial_metrics = {
@@ -58,7 +62,7 @@ def performance_monitor(func: Callable) -> Callable:
 				'gc_count': gc.get_count()
 			})
 		except (psutil.AccessDenied, psutil.NoSuchProcess) as e:
-			print(f"Warning: Some metrics may be unavailable - {str(e)}")
+			metrics['warning'] = str(e)
 
 		# Start monitoring
 		tracemalloc.start()
@@ -78,8 +82,9 @@ def performance_monitor(func: Callable) -> Callable:
 		thread_count = process.num_threads()
 		thread_utilization = len(threading.enumerate()) / thread_count
 
-		# Calculate differential metrics if initial values were available
-		metrics = {
+		# Store basic metrics
+		metrics.update({
+			'function_name': func.__name__,
 			'execution_time': end_time - start_time,
 			'memory_used': final_memory - initial_metrics['memory'],
 			'cpu_usage': final_cpu_time - initial_metrics['cpu_time'],
@@ -87,8 +92,9 @@ def performance_monitor(func: Callable) -> Callable:
 			'thread_count': thread_count,
 			'thread_utilization': thread_utilization,
 			'stack_depth': len(inspect.stack())
-		}
+		})
 
+		# Calculate and store differential metrics if initial values were available
 		if 'io' in initial_metrics:
 			final_io = process.io_counters()
 			metrics.update({
@@ -129,40 +135,6 @@ def performance_monitor(func: Callable) -> Callable:
 				zip(final_gc_count, initial_metrics['gc_count'])
 			)
 
-		# Print performance report
-		print(f"\nPerformance Metrics for {func.__name__}:")
-		print("=" * 70)
-
-		# Basic metrics
-		print(f"Execution Time: {metrics['execution_time']:.4f} seconds")
-		print(f"CPU Usage: {metrics['cpu_usage']:.2f}%")
-		print(f"Memory Usage: {metrics['memory_used']:.2f} MB")
-		print(f"Peak Memory: {metrics['peak_memory']:.2f} MB")
-		print(f"Thread Count: {metrics['thread_count']}")
-		print(f"Thread Utilization: {metrics['thread_utilization']:.2%}")
-
-		# Optional metrics
-		if 'read_kb' in metrics:
-			print(
-				f"I/O Operations - Read: {metrics['read_kb']:.2f} KB, Write: {metrics['write_kb']:.2f} KB")
-
-		if 'voluntary_ctx' in metrics:
-			print(f"Context Switches - Voluntary: {metrics['voluntary_ctx']}, "
-				  f"Involuntary: {metrics['involuntary_ctx']}")
-
-		if 'page_faults' in metrics:
-			print(f"Page Faults: {metrics['page_faults']}")
-
-		if 'bytes_sent_kb' in metrics:
-			print(f"Network Usage - Sent: {metrics['bytes_sent_kb']:.2f} KB, "
-				  f"Received: {metrics['bytes_received_kb']:.2f} KB")
-
-		if 'gc_runs' in metrics:
-			print(f"GC Runs (Gen 0/1/2): {metrics['gc_runs']}")
-
-		print(f"Stack Depth: {metrics['stack_depth']}")
-		print("=" * 70 + "\n")
-
-		return result
+		return result, metrics
 
 	return wrapper
