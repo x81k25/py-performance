@@ -1,0 +1,9 @@
+cupy
+numpy
+pandas
+psutil
+pyarrow
+scikit-learn
+requests
+tabulate
+xgboost
